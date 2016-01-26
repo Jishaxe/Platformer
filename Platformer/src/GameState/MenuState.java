@@ -59,7 +59,7 @@ public class MenuState extends GameState {
 		// draw title
 		g.setColor(titleColor);
 		g.setFont(titleFont);
-		g.drawString("Platformer", 80, 70);
+		g.drawString("Dragon Tale", 80, 70);
 		
 		// draw menu options
 		g.setFont(font);
@@ -77,7 +77,7 @@ public class MenuState extends GameState {
 	
 	private void select() {
 		if(currentChoice == 0) {
-			// start
+			gsm.setState(GameStateManager.LEVEL1STATE);
 		}
 		if(currentChoice == 1) {
 			// help
