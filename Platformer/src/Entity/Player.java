@@ -22,7 +22,7 @@ public class Player extends MapObject {
 	private boolean firing;
 	private int fireCost;
 	private int fireBallDamage;
-	//private ArrayList<FireBall> fireBalls;
+	private ArrayList<FireBall> fireBalls;
 	
 	// scratch
 	private boolean scratching;
@@ -71,7 +71,7 @@ public class Player extends MapObject {
 		
 		fireCost = 200;
 		fireBallDamage = 5;
-		//fireBalls = new ArrayList<FireBall>();
+		fireBalls = new ArrayList<FireBall>();
 		
 		scratchDamage = 8;
 		scratchRange = 40;
@@ -93,7 +93,7 @@ public class Player extends MapObject {
 				
 				for(int j = 0; j < numFrames[i]; j++) {
 					
-					if(i != 6) {
+					if(i != SCRATCHING) {
 						bi[j] = spritesheet.getSubimage(
 								j * width,
 								i * height,
@@ -105,7 +105,7 @@ public class Player extends MapObject {
 						bi[j] = spritesheet.getSubimage(
 								j * width * 2,
 								i * height,
-								width,
+								width * 2,
 								height
 						);
 					}
@@ -141,6 +141,64 @@ public class Player extends MapObject {
 	}
 	public void setGliding(boolean b) { 
 		gliding = b;
+	}
+	
+	public void checkAttack(ArrayList<Enemy> enemies) {
+		
+		// loop through enemies
+		for(int i = 0; i < enemies.size(); i++) {
+			
+			Enemy e = enemies.get(i);
+			
+			// scratch attack
+			if(scratching) {
+				if(facingRight) {
+					if(
+						e.getx() > x &&
+						e.getx() < x + scratchRange && 
+						e.gety() > y - height / 2 &&
+						e.gety() < y + height / 2
+					) {
+						e.hit(scratchDamage);
+					}
+				}
+				else {
+					if(
+						e.getx() < x &&
+						e.getx() > x - scratchRange &&
+						e.gety() > y - height / 2 &&
+						e.gety() < y + height / 2
+					) {
+						e.hit(scratchDamage);
+					}
+				}
+			}
+			
+			// fireballs
+			for(int j = 0; j < fireBalls.size(); j++) {
+				if(fireBalls.get(j).intersects(e)) {
+					e.hit(fireBallDamage);
+					fireBalls.get(j).setHit();
+					break;
+				}
+			}
+			
+			// check enemy collision
+			if(intersects(e)) {
+				hit(e.getDamage());
+			}
+			
+		}
+		
+	}
+	
+	public void hit(int damage) {
+		if(flinching) return;
+		health -= damage;
+		if(health < 0) health = 0;
+		if(health == 0) dead = true;
+		flinching = true;
+		flinchTimer = System.nanoTime();
 	}
 	
 	private void getNextPosition() {
@@ -207,6 +265,44 @@ public class Player extends MapObject {
 		getNextPosition();
 		checkTileMapCollision();
 		setPosition(xtemp, ytemp);
+		
+		// check attack has stopped
+		if(currentAction == SCRATCHING) {
+			if(animation.hasPlayedOnce()) scratching = false;
+		}
+		if(currentAction == FIREBALL) {
+			if(animation.hasPlayedOnce()) firing = false;
+		}
+		
+		// fireball attack
+		fire += 1;
+		if(fire > maxFire) fire = maxFire;
+		if(firing && currentAction != FIREBALL) {
+			if(fire > fireCost) {
+				fire -= fireCost;
+				FireBall fb = new FireBall(tileMap, facingRight);
+				fb.setPosition(x, y);
+				fireBalls.add(fb);
+			}
+		}
+		
+		// update fireballs
+		for(int i = 0; i < fireBalls.size(); i++) {
+			fireBalls.get(i).update();
+			if(fireBalls.get(i).shouldRemove()) {
+				fireBalls.remove(i);
+				i--;
+			}
+		}
+		
+		// check done flinching
+		if(flinching) {
+			long elapsed =
+				(System.nanoTime() - flinchTimer) / 1000000;
+			if(elapsed > 1000) {
+				flinching = false;
+			}
+		}
 		
 		// set animation
 		if(scratching) {
@@ -280,6 +376,11 @@ public class Player extends MapObject {
 		
 		setMapPosition();
 		
+		// draw fireballs
+		for(int i = 0; i < fireBalls.size(); i++) {
+			fireBalls.get(i).draw(g);
+		}
+		
 		// draw player
 		if(flinching) {
 			long elapsed =
@@ -289,25 +390,7 @@ public class Player extends MapObject {
 			}
 		}
 		
-		if(facingRight) {
-			g.drawImage(
-				animation.getImage(),
-				(int)(x + xmap - width / 2),
-				(int)(y + ymap - height / 2),
-				null
-			);
-		}
-		else {
-			g.drawImage(
-				animation.getImage(),
-				(int)(x + xmap - width / 2 + width),
-				(int)(y + ymap - height / 2),
-				-width,
-				height,
-				null
-			);
-			
-		}
+		super.draw(g);
 		
 	}
 	
